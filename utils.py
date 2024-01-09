@@ -62,7 +62,7 @@ def generate_synthetic_data(m1, m2, sigma):
         All inputs should be 1d np arrays of the same shape # TODO Try other distributions
     """
     y1 = m1 + np.random.standard_normal(m1.shape[0]) * sigma
-    y2 = m2+ np.random.standard_normal(m1.shape[0]) * sigma
+    y2 = m2 + np.random.standard_normal(m1.shape[0]) * sigma
     
     return y1, y2
 
