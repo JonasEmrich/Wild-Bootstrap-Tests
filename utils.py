@@ -7,7 +7,7 @@ def generate_data_franke(N=500, defect=True):
     if defect:
         m2 += np.exp(-800*np.square(x-0.5))
     sigma = 0.7 - 1.4*np.square(x-0.5)
-    y1, y2 = generate_synthetic_data(m1, m1, sigma)
+    y1, y2 = generate_synthetic_data(m1, m2, sigma)
     return y1, y2
 
 def bartlett_priestley_kernel(u, h):
