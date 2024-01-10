@@ -125,4 +125,4 @@ def wild_bootstrap(y1, y2, kernel_function, h, g, residual_function, B, alpha):
     print("The Hypothesis H0 was %srejected" %("" if rejected_bool else "not "))
     print("c_alpha_star is %.4f"%c_alpha_star)
 
-    return Tn > c_alpha_star, c_alpha_star, Tn_star
+    return Tn > c_alpha_star, c_alpha_star, Tn_star, Tn
