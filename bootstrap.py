@@ -54,6 +54,7 @@ class Bootstrap():
         self.g = g
         self.h = h
         self.B = B
+        self.printout = printout
 
         # compute initial estimates
         (m1, m2, m1_g), Tn = self._calc_init_estimates(y1, y2)
@@ -167,7 +168,7 @@ class Bootstrap():
                                 epsilon_hat_2=epsilon_hat_2, 
                                 m1_g=m1_g) 
         # collect results of B iterations
-        Tn_star = np.array([result for result in tqdm(pool.imap(func, np.arange(self.B)), total=self.B)]) 
+        Tn_star = np.array([result for result in tqdm(pool.imap(func, np.arange(self.B)), total=self.B, leave=self.printout)]) 
         return Tn_star  
 
 
@@ -182,16 +183,16 @@ class MonteCarlo():
         else:
             raise ValueError("Unknown kernel function.")
 
-    def compute_Tn(self, h=.02, M=1000):
+    def compute_Tn(self, h=.02, M=1000, printout=True):
         self.h = h
         self.M = M
         pool = Pool(mp.cpu_count()-1)
-        return np.array([result for result in tqdm(pool.imap(self._sampling_iteration, np.arange(M)), total=M)])
+        return np.array([result for result in tqdm(pool.imap(self._sampling_iteration, np.arange(M)), total=M, leave=True)])
     
     def _sampling_iteration(self, m):
         # auxiliary function for each iteration
         np.random.seed((m * int(time.time())) % 123456789)
-        y1, y2 = generate_data_franke()
+        y1, y2 = generate_data_franke(defect=False)
         _m1 = calc_smoothed_estimate(y1, self.kernel_function, self.h)
         _m2 = calc_smoothed_estimate(y2, self.kernel_function, self.h)
         return calc_Tn(_m1, _m2, self.h)
