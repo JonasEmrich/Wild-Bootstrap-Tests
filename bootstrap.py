@@ -89,6 +89,7 @@ class Bootstrap():
             fig, ax = plt.subplots()
             ax = sns.kdeplot(Tn_star, ax=ax, label="Bootstrap Distribution")
             ax.vlines(Tn, ymin=0, ymax=.6, linestyles="dashed",colors="orange", label=r"$T_n$")
+            ax.vlines(c_alpha_star, ymin=0, ymax=.6, linestyles="dashed",colors="green", label=r"$c_{alpha*}$")
             ax.set_xlabel(r"$T_n$")
             ax.set_title(title)
             ax.legend()
