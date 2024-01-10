@@ -5,6 +5,7 @@ from pathos.multiprocessing import ProcessingPool as Pool
 import functools
 import matplotlib.pyplot as plt
 import seaborn as sns
+import time
 
 from utils import *
 
@@ -31,7 +32,7 @@ class Bootstrap():
             raise ValueError("Unknown method.")
         
 
-    def compute(self, y1, y2, h=.02, g=.03, B=1000, alpha=.05):
+    def compute(self, y1, y2, h=.02, g=.03, B=1000, alpha=.05, printout=True):
         """
         performs the computation of the (wild) bootstrap test
 
@@ -69,8 +70,9 @@ class Bootstrap():
         c_alpha_star = np.quantile(Tn_star, q)
         rejected_bool = Tn > c_alpha_star
 
-        print("The Hypothesis H0 was %srejected" %("" if rejected_bool else "not "))
-        print("c_alpha_star is %.4f"%c_alpha_star)
+        if printout:
+            print("The Hypothesis H0 was %srejected" %("" if rejected_bool else "not "))
+            print("c_alpha_star is %.4f"%c_alpha_star)
 
         self.results = {"rejected": Tn > c_alpha_star, 
                         "c_alpha_star":c_alpha_star,
@@ -143,7 +145,7 @@ class Bootstrap():
         3. estimating bootstrap smoothed estimates m*
         4. calculate bootstrap test statstistic Tn*
         """
-        np.random.seed(b) # setting seed so that every iteration uses different random number generator starting points
+        np.random.seed((b * int(time.time())) % 123456789) # setting seed so that every iteration uses different random number generator starting points
         bootstrap_epsilon_1 = self.residual_function(epsilon_hat_1)
         bootstrap_epsilon_2 = self.residual_function(epsilon_hat_2)
 
@@ -188,7 +190,7 @@ class MonteCarlo():
     
     def _sampling_iteration(self, m):
         # auxiliary function for each iteration
-        np.random.seed(m)
+        np.random.seed((m * int(time.time())) % 123456789)
         y1, y2 = generate_data_franke()
         _m1 = calc_smoothed_estimate(y1, self.kernel_function, self.h)
         _m2 = calc_smoothed_estimate(y2, self.kernel_function, self.h)
