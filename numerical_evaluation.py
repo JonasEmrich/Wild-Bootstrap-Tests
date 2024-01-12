@@ -1,5 +1,9 @@
 from tqdm import tqdm
 import time
+import multiprocessing as mp
+from pathos.multiprocessing import ProcessingPool as Pool
+import numpy as np
+import pandas as pd
 
 from utils import *
 from bootstrap import *
@@ -24,15 +28,20 @@ class MonteCarloEvaluation():
             Saves results when a filename is provided under the provided name
 
         """
+        self.filename = filename
+        self.name = name
 
         # Perform L monte carlo experiments/bootstrap hypothesis tests
-        results = np.zeros(N)
-        for i in tqdm(range(N)):
-            results[i] = self._iter(i)
 
-            if filename is not None:
-                with open(filename, "a") as file:
-                    file.write(f"{name}, {results[i]} \n")
+        pool = Pool(mp.cpu_count()-1)
+        results = np.array([result for result in tqdm(pool.imap(self._iter, np.arange(N)), total=N, leave=True)])
+
+        # write
+        if filename is not None:
+            df = pd.DataFrame(results)
+            df['name'] = name
+            df.to_csv(filename, header=False, index=False, mode="a")
+
         return results
 
 
