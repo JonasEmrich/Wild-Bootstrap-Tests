@@ -18,9 +18,9 @@ def iter(i):
     return results_wild["rejected"]
 
 # evaluation setup
-L = 50 # number of tests
+L = 500 # number of tests
 defect = True # testing with a defected signal
-filename = f"evaluation_defect={defect}.csv"
+filename = f"data/evaluation_defect={defect}.csv"
 
 # Perform L monte carlo experiments/bootstrap hypothesis tests
 DATA = np.zeros(L)
@@ -32,5 +32,5 @@ for i in tqdm(range(L)):
 
 # Read Data
 DATA = np.genfromtxt(filename, delimiter=',')
-FAR = len(DATA[DATA==defect])/len(DATA)
-print(f"False Alarm Rate {FAR}")
+FR = len(DATA[DATA==defect])/len(DATA)
+print(f"FalseRate (defect = {defect}) {FR}")
