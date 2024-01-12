@@ -4,33 +4,50 @@ import time
 from utils import *
 from bootstrap import *
 
-def iter(i):
-    """ Performs one monte carlo iteration of testing a signal using Bootstrap"""
-    np.random.seed((i * int(time.time())) % 123456789)
 
-    # Generate observational data
-    y1, y2 = generate_data_franke(defect=defect)
 
-    BS = Bootstrap(method="wild", kernel_function="bartlett_priestley_kernel")
-    results_wild = BS.compute(y1, y2, h=.02, g=.03, B=1000, alpha=.05, printout=False)
-    #BS.plot_kde(title="Bootstrap Approximation Wild")
+class MonteCarloEvaluation():
+    '''
+    This class implements a simple evaluation setup that performs montecarlo trials of a given function based on data provided using a data generating function
+    '''
+    def __init__(self, data_generator, testing_method):
+        """
+        data_generator has to be a function in the format: data = F()
+        testing_method has to be a function in the format: [bool] = T(data)
+        """
+        self._data_generator = data_generator
+        self._testing_method = testing_method
 
-    return results_wild["rejected"]
+    def perform_trials(self, N=500, filename=None, name=""):
+        """
+            Starts the excecution of MC experments
+            Saves results when a filename is provided under the provided name
 
-# evaluation setup
-L = 500 # number of tests
-defect = True # testing with a defected signal
-filename = f"data/evaluation_defect={defect}.csv"
+        """
 
-# Perform L monte carlo experiments/bootstrap hypothesis tests
-DATA = np.zeros(L)
-for i in tqdm(range(L)):
-    DATA[i] = iter(i)
+        # Perform L monte carlo experiments/bootstrap hypothesis tests
+        results = np.zeros(N)
+        for i in tqdm(range(N)):
+            results[i] = self._iter(i)
 
-    with open(filename, "a") as file:
-        file.write(str(DATA[i])+"\n")
+            if filename is not None:
+                with open(filename, "a") as file:
+                    file.write(f"{name}, {results[i]} \n")
+        return results
 
-# Read Data
-DATA = np.genfromtxt(filename, delimiter=',')
-FR = len(DATA[DATA==defect])/len(DATA)
-print(f"FalseRate (defect = {defect}) {FR}")
+
+    def _iter(self, i):
+        """ Performs one monte carlo iteration of testing a signal using Bootstrap"""
+        np.random.seed((i * int(time.time())) % 123456789)
+
+        # Generate observational data
+        data = self._data_generator()
+
+        # perform computation
+        result = self._testing_method(*data)
+    
+        return result
+
+
+
+
