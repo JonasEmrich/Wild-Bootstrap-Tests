@@ -1,4 +1,6 @@
 import numpy as np
+import cv2
+import os
 
 def generate_data_franke(N=500, defect=True):    
     x = np.arange(N)/N
@@ -56,3 +58,22 @@ def calc_Tn(m1, m2, h):
     implements test statistic
     """
     return np.sqrt(h) * np.sum(np.square(m1-m2))
+
+
+def load_images(folders, target_size=(100, 100)):
+    X, X_hat = [], []
+    for folder in folders:
+        for filename in os.listdir(folder):
+            img = cv2.imread(os.path.join(folder, filename))
+            if img is not None:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                img = cv2.resize(img, target_size)
+                img = np.divide(img, 255)
+                if folder == "defect_images":
+                    X_hat.append(img)
+                elif folder == "no_defect_images":
+                    X.append(img)
+    return X, X_hat
+
+
+
