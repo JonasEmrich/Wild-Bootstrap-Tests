@@ -8,8 +8,6 @@ import pandas as pd
 from utils import *
 from bootstrap import *
 
-
-
 class MonteCarloEvaluation():
     '''
     This class implements a simple evaluation setup that performs montecarlo trials of a given function based on data provided using a data generating function
@@ -59,4 +57,19 @@ class MonteCarloEvaluation():
 
 
 
+if __name__ == "__main__":
+    # define evaluation setup
+    filename = f"data/evaluation_franke.csv"
+    N = 900 # number of runs   
+    method = "wild"
+    defect = True
 
+
+    BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
+    MC = MonteCarloEvaluation(data_generator = lambda: generate_data_franke(defect=defect),
+                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, alpha=.05, printout=False)["rejected"])
+
+    # start MC computation
+    name = method+"_defected_data" if defect else method+"_typical_data"
+    print(f"Starting Evaluation with N={N}, method={method}, defect={defect}")
+    MC.perform_trials(N=N, filename=filename, name=name)
