@@ -1,7 +1,8 @@
 import numpy as np
 import cv2
 import os
-
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 def generate_data_franke(N=500, defect=True):    
     x = np.arange(N)/N
     m1 = np.sin(np.pi*2*x)
@@ -76,4 +77,9 @@ def load_images(folders, target_size=(100, 100)):
     return X, X_hat
 
 
-
+def plot_defect_area(defect_image, minpoint, maxpoint):
+    fig, ax = plt.subplots()
+    ax.imshow(defect_image, cmap = 'gray', vmin=0, vmax=1)
+    rect = patches.Rectangle((minpoint[1], minpoint[0]), maxpoint[1] - minpoint[1], maxpoint[0] - minpoint[0], linewidth=3, edgecolor='r', fill=False)
+    ax.add_patch(rect)
+    plt.show()
