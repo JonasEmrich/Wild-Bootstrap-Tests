@@ -60,8 +60,8 @@ class MonteCarloEvaluation():
 if __name__ == "__main__":
     # define evaluation setup
     filename = f"data/evaluation_franke.csv"
-    N = 900 # number of runs   
-    method = "wild"
+    N = 1000 # number of runs   
+    method = "normal"
     defect = True
 
 
