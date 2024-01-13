@@ -96,6 +96,22 @@ class Bootstrap():
             plt.show()
 
     def test_image(self, image, image_hat, h=.02, g=.03, B=1000, alpha=.05):
+        """
+        compare two-dimensional images to find defects
+
+        args:
+            image (array): reference image for comparison, no defects
+            image_hat (array): image with possible defects
+            h (float):      the kernel bandwidth of the initial estimates
+            g (float):      the kernel bandwidth of bootstrap estimates
+            B (int):        number of Bootstrap iterations
+            alpha (float):  the significance level
+
+        returns:
+            defect (bool): True, if null hypothesis was rejected (defect), or False if not (no defect)
+            min_point (int, int): location of minimum rejection point (row, column)
+            max_point (int, int): location of maximum rejection point (row, column)
+        """
         if (image.shape[1] != image_hat.shape[1]) & (image.shape[0] != image_hat.shape[0]):
             raise ValueError("Image shapes do not match.")
 
@@ -112,9 +128,7 @@ class Bootstrap():
         r = [result["rejected"] for result in results_rows]
         defect = any(c) or any(r)
         min_point = (np.argmax(r), np.argmax(c))
-        max_point = (0, 0)
-        if defect:
-            max_point = (len(r) - 1 - np.argmax(r[::-1]), len(c) - 1 - np.argmax(c[::-1]))
+        max_point = ((len(r) - 1 - np.argmax(r[::-1])) if any(r) else 0, (len(c) - 1 - np.argmax(c[::-1])) if any(c) else 0)
         return defect, min_point, max_point
 
     def results(self):
