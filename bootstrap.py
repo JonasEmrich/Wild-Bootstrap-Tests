@@ -1,11 +1,11 @@
 import numpy as np
 from tqdm import tqdm
 import multiprocessing as mp
-from pathos.multiprocessing import ProcessingPool as Pool
 import functools
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
+from pathos.multiprocessing import ProcessingPool as Pool
 
 from utils import *
 
@@ -64,7 +64,7 @@ class Bootstrap():
         epsilon_hat_2 = y2 - m2
 
         # perform bootstrap iterations
-        Tn_star = self._perform_bootstrap_iteration(epsilon_hat_1, epsilon_hat_2, m1_g)
+        Tn_star = self._perform_bootstrap_iterations(epsilon_hat_1, epsilon_hat_2, m1_g)
 
         # evaluate test
         q = 1-alpha
@@ -131,7 +131,7 @@ class Bootstrap():
         max_point = ((len(r) - 1 - np.argmax(r[::-1])) if any(r) else 0, (len(c) - 1 - np.argmax(c[::-1])) if any(c) else 0)
         return defect, min_point, max_point
 
-    def results(self):
+    def get_results(self):
         """ returns the computed results if available """
         if self.results:
             return results
@@ -142,18 +142,18 @@ class Bootstrap():
         PLEASE INPUT VECTOR
         performs a classical bootstrap resample with replacement of the input array
         """
-        return np.random.choice(epsilon_hat, epsilon_hat.shape[0], replace=True)
+        return np.random.choice(epsilon_hat, (self.B, epsilon_hat.shape[0]), replace=True)
 
     def _sample_wild_residual(self, epsilon_hat):
         """ 
         PLEASE INPUT VECTOR
         returns wild residuals according to binary distribution
         """
-        p = np.random.random_sample(epsilon_hat.shape[0])
+        p = np.random.random_sample((self.B, epsilon_hat.shape[0]))
         gamma = (5 + np.sqrt(5)) / 10
         mask = p < gamma
-        a = ((1-np.sqrt(5)) / 2) * epsilon_hat
-        b = ((1+np.sqrt(5)) / 2) * epsilon_hat
+        a = ((1-np.sqrt(5)) / 2) * np.tile(epsilon_hat,(self.B,1))
+        b = ((1+np.sqrt(5)) / 2) * np.tile(epsilon_hat,(self.B,1))
         b[mask] = a[mask]
         return b
 
@@ -162,8 +162,8 @@ class Bootstrap():
         PLEASE INPUT VECTOR
         returns wild residuals according to normal distribution
         """
-        V_i = np.random.standard_normal(epsilon_hat.shape[0])
-        return ((1/np.sqrt(2))*V_i + (1/2)*(np.square(V_i)-1))*epsilon_hat
+        V_i = np.random.standard_normal((self.B, epsilon_hat.shape[0]))
+        return ((1/np.sqrt(2))*V_i + (1/2)*(np.square(V_i)-1)) * np.tile(epsilon_hat,(self.B,1))
 
     def _calc_init_estimates(self, y1, y2):
         # calculate initial estimates
@@ -173,8 +173,8 @@ class Bootstrap():
 
         Tn = calc_Tn(m1, m2, self.h)
         return (m1, m2, m1_g), Tn
-
-    def _bootstrap_iteration(self, b, epsilon_hat_1, epsilon_hat_2, m1_g):
+    
+    def _perform_bootstrap_iterations(self, epsilon_hat_1, epsilon_hat_2, m1_g):
         """
         Computes one Bootstrap iteration
         1. computing wild residuals
@@ -182,35 +182,16 @@ class Bootstrap():
         3. estimating bootstrap smoothed estimates m*
         4. calculate bootstrap test statstistic Tn*
         """
-        np.random.seed((b * int(time.time())) % 123456789) # setting seed so that every iteration uses different random number generator starting points
         bootstrap_epsilon_1 = self.residual_function(epsilon_hat_1)
         bootstrap_epsilon_2 = self.residual_function(epsilon_hat_2)
 
-        y1_star = m1_g + bootstrap_epsilon_1
-        y2_star = m1_g + bootstrap_epsilon_2
+        y1_star = np.tile(m1_g,(self.B,1)) + bootstrap_epsilon_1
+        y2_star = np.tile(m1_g,(self.B,1)) + bootstrap_epsilon_2
 
-        m1_star = calc_smoothed_estimate(y1_star, self.kernel_function, self.h)
-        m2_star = calc_smoothed_estimate(y2_star, self.kernel_function, self.h)
+        m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, self.h)
+        m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, self.h)
 
-        return calc_Tn(m1_star, m2_star, self.h) # Tn_star
-
-    def _perform_bootstrap_iteration(self, epsilon_hat_1, epsilon_hat_2, m1_g):
-        # Parallel processing of one boostrap iteration
-        Tn_star = []
-        pool = Pool(mp.cpu_count()-1)
-        # create auxiliary function
-        func = functools.partial(self._bootstrap_iteration,
-                                 epsilon_hat_1=epsilon_hat_1,
-                                 epsilon_hat_2=epsilon_hat_2,
-                                 m1_g=m1_g)
-        # collect results of B iterations
-
-        if self.show_progress:
-            results = [result for result in tqdm(pool.imap(func, np.arange(self.B)), total=self.B, leave=True)]
-        else:
-            results = pool.map(func, np.arange(self.B))
-        Tn_star = np.array(results)
-        return Tn_star
+        return calc_Tn(m1_star, m2_star, self.h, axis=1) # Tn_star  
 
 
 class MonteCarlo():
@@ -236,4 +217,5 @@ class MonteCarlo():
         y1, y2 = generate_data_franke(defect=False)
         _m1 = calc_smoothed_estimate(y1, self.kernel_function, self.h)
         _m2 = calc_smoothed_estimate(y2, self.kernel_function, self.h)
+        return calc_Tn(_m1, _m2, self.h)
         return calc_Tn(_m1, _m2, self.h)
