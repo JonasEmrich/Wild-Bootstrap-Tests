@@ -95,15 +95,15 @@ class Bootstrap():
             ax.legend()
             plt.show()
 
-    def test_image(self, image, image_hat, h=.02, g=.03, B=1000, alpha=.05):
+    def test_image(self, image, image_hat, h=(.02, .02), g=(.03, .03), B=1000, alpha=.05):
         """
         compare two-dimensional images to find defects
 
         args:
             image (array): reference image for comparison, no defects
             image_hat (array): image with possible defects
-            h (float):      the kernel bandwidth of the initial estimates
-            g (float):      the kernel bandwidth of bootstrap estimates
+            h (tuple):      the kernel bandwidth of the initial estimates (row, col)
+            g (tuple):      the kernel bandwidth of bootstrap estimates (row, col)
             B (int):        number of Bootstrap iterations
             alpha (float):  the significance level
 
@@ -115,21 +115,33 @@ class Bootstrap():
         if (image.shape[1] != image_hat.shape[1]) & (image.shape[0] != image_hat.shape[0]):
             raise ValueError("Image shapes do not match.")
 
-        results_cols = [
-            self.compute(image[:, i], image_hat[:, i], h=h, g=g, B=B, alpha=alpha, printout=False, show_progress=False)
-            for i in tqdm(range(image.shape[1]), desc="Processing Columns", leave=True)
-        ]
+        def _row_iteration(i):
+            return self.compute(image[i, :], image_hat[i, :], h=h[0], g=g[0], B=B, alpha=alpha, printout=False, show_progress=False)
 
-        results_rows = [
-            self.compute(image[i, :], image_hat[i, :], h=h, g=g, B=B, alpha=alpha, printout=False, show_progress=False)
-            for i in tqdm(range(image.shape[0]), desc="Processing Rows", leave=True)
-        ]
-        c = [result["rejected"] for result in results_cols]
-        r = [result["rejected"] for result in results_rows]
-        defect = any(c) or any(r)
+        def _col_iteration(i):
+            return self.compute(image[:, i], image_hat[:, i], h=h[1], g=g[1], B=B, alpha=alpha, printout=False, show_progress=False)
+        
+        # create multiprocessing pool
+        pool = Pool(mp.cpu_count() - 1)
+
+        # process rows parallel
+        r = np.array([
+            result["rejected"] for result in
+            tqdm(pool.imap(_row_iteration, range(image.shape[0])), desc="Processing Rows", leave=True)
+        ])
+
+        # process columns parallel
+        c = np.array([
+            result["rejected"] for result in
+            tqdm(pool.imap(_col_iteration, range(image.shape[1])), desc="Processing Columns", leave=True)
+        ])
+
+
+        defect_detected = any(c) or any(r)
+        print(r, c)
         min_point = (np.argmax(r), np.argmax(c))
         max_point = ((len(r) - 1 - np.argmax(r[::-1])) if any(r) else 0, (len(c) - 1 - np.argmax(c[::-1])) if any(c) else 0)
-        return defect, min_point, max_point
+        return defect_detected, min_point, max_point
 
     def get_results(self):
         """ returns the computed results if available """

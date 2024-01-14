@@ -1,8 +1,10 @@
 import numpy as np
 import cv2
 import os
+import scipy
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
+
 def generate_data_franke(N=500, defect=True):    
     x = np.arange(N)/N
     m1 = np.sin(np.pi*2*x)
@@ -80,7 +82,7 @@ def calc_Tn(m1, m2, h, axis=0):
     return np.sqrt(h) * np.sum(np.square(m1-m2), axis=axis)
 
 
-def load_images(folders, target_size=(100, 100)):
+def load_images(folders, target_size=(100, 100), detrend=False):
     X, X_hat = [], []
     for folder in folders:
         for filename in os.listdir(folder):
@@ -89,6 +91,10 @@ def load_images(folders, target_size=(100, 100)):
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 img = cv2.resize(img, target_size)
                 img = np.divide(img, 255)
+                if detrend:
+                # remove linear trends
+                    img = scipy.signal.detrend(img, axis=0)
+                    img = scipy.signal.detrend(img, axis=1)
                 if folder == "defect_images":
                     X_hat.append(img)
                 elif folder == "no_defect_images":
