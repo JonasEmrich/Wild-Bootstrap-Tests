@@ -1,10 +1,12 @@
 from tqdm import tqdm
 import time
+import multiprocessing as mp
+from pathos.multiprocessing import ProcessingPool as Pool
+import numpy as np
+import pandas as pd
 
 from utils import *
 from bootstrap import *
-
-
 
 class MonteCarloEvaluation():
     '''
@@ -24,15 +26,20 @@ class MonteCarloEvaluation():
             Saves results when a filename is provided under the provided name
 
         """
+        self.filename = filename
+        self.name = name
 
         # Perform L monte carlo experiments/bootstrap hypothesis tests
-        results = np.zeros(N)
-        for i in tqdm(range(N)):
-            results[i] = self._iter(i)
 
-            if filename is not None:
-                with open(filename, "a") as file:
-                    file.write(f"{name}, {results[i]} \n")
+        pool = Pool(mp.cpu_count()-1)
+        results = np.array([result for result in tqdm(pool.imap(self._iter, np.arange(N)), total=N, leave=True)])
+
+        # write
+        if filename is not None:
+            df = pd.DataFrame(results)
+            df['name'] = name
+            df.to_csv(filename, header=False, index=False, mode="a")
+
         return results
 
 
@@ -50,4 +57,19 @@ class MonteCarloEvaluation():
 
 
 
+if __name__ == "__main__":
+    # define evaluation setup
+    filename = f"data/evaluation_franke.csv"
+    N = 1000 # number of runs   
+    method = "normal"
+    defect = True
 
+
+    BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
+    MC = MonteCarloEvaluation(data_generator = lambda: generate_data_franke(defect=defect),
+                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, alpha=.05, printout=False)["rejected"])
+
+    # start MC computation
+    name = method+"_defected_data" if defect else method+"_typical_data"
+    print(f"Starting Evaluation with N={N}, method={method}, defect={defect}")
+    MC.perform_trials(N=N, filename=filename, name=name)
