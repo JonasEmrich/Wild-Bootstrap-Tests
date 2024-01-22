@@ -5,14 +5,14 @@ import scipy
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 
-def generate_data_franke(N=500, defect=True):    
+def generate_data_franke(N=500, defect=True, noise="normal"):    
     x = np.arange(N)/N
     m1 = np.sin(np.pi*2*x)
     m2 = m1.copy()
     if defect:
         m2 += np.exp(-800*np.square(x-0.5))
     sigma = 0.7 - 1.4*np.square(x-0.5)
-    y1, y2 = generate_synthetic_data(m1, m2, sigma)
+    y1, y2 = generate_synthetic_data(m1, m2, sigma, noise=noise)
     return y1, y2
 
 def bartlett_priestley_kernel(u, h):
@@ -27,13 +27,22 @@ def gaussian_kernel(u, h):
     """
     return (1/h) * (1 / np.sqrt(2*np.pi)) * np.exp((-1/2)*np.power(u / h, 2))
 
-def generate_synthetic_data(m1, m2, sigma):
+def generate_synthetic_data(m1, m2, sigma, noise="normal"):
     """ 
     All inputs should be 1d np arrays of the same shape 
     # TODO Try other distributions
     """
-    y1 = m1 + np.random.standard_normal(m1.shape[0]) * sigma
-    y2 = m2 + np.random.standard_normal(m1.shape[0]) * sigma
+    if noise in ["normal", "gaussian"]:
+        y1 = scipy.stats.norm.rvs(loc=m1, scale=sigma, size=m1.shape[0])
+        y2 = scipy.stats.norm.rvs(loc=m2, scale=sigma, size=m1.shape[0])
+    elif noise in ["skewed", "skew"]:
+        y1 = scipy.stats.skewnorm.rvs(4, loc=m1, scale=sigma, size=m1.shape[0])
+        y2 = scipy.stats.skewnorm.rvs(4, loc=m2, scale=sigma, size=m1.shape[0])
+    elif noise in ["laplace", "heavy-tailed"]:
+        y1 = scipy.stats.laplace.rvs(loc=m1, scale=sigma, size=m1.shape[0])
+        y2 = scipy.stats.laplace.rvs(loc=m2, scale=sigma, size=m1.shape[0])
+    else:
+        raise ValueError("Noise distribution '{noise}' not known.")
     
     return y1, y2
 
