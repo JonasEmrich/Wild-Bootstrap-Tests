@@ -61,15 +61,19 @@ if __name__ == "__main__":
     # define evaluation setup
     filename = f"data/evaluation_franke.csv"
     N = 1000 # number of runs   
-    method = "normal"
-    defect = True
+    methods = ["normal", "wild"]
+    defects = [False, True]
+    noise_distributions = ["gauss","skewed", "laplace"]
 
+    for method in methods:
+        for noise in noise_distributions:
+            for defect in defects:
+                BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
+                MC = MonteCarloEvaluation(data_generator = lambda: generate_data_franke(defect=defect, noise=noise),
+                                         testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, alpha=.05, printout=False)["rejected"])
 
-    BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
-    MC = MonteCarloEvaluation(data_generator = lambda: generate_data_franke(defect=defect),
-                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, alpha=.05, printout=False)["rejected"])
+                # start MC computation
+                name = method+"_"+noise+"_defected_data" if defect else method+"_"+noise+"_typical_data"
 
-    # start MC computation
-    name = method+"_defected_data" if defect else method+"_typical_data"
-    print(f"Starting Evaluation with N={N}, method={method}, defect={defect}")
-    MC.perform_trials(N=N, filename=filename, name=name)
+                print(f"Starting Evaluation with N={N}, method={method}, noise={noise}, defect={defect}")
+                MC.perform_trials(N=N, filename=filename, name=name)

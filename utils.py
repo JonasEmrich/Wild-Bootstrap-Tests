@@ -32,7 +32,7 @@ def generate_synthetic_data(m1, m2, sigma, noise="normal"):
     All inputs should be 1d np arrays of the same shape 
     # TODO Try other distributions
     """
-    if noise in ["normal", "gaussian"]:
+    if noise in ["normal", "gaussian", "gauss"]:
         y1 = scipy.stats.norm.rvs(loc=m1, scale=sigma, size=m1.shape[0])
         y2 = scipy.stats.norm.rvs(loc=m2, scale=sigma, size=m1.shape[0])
     elif noise in ["skewed", "skew"]:
@@ -42,7 +42,7 @@ def generate_synthetic_data(m1, m2, sigma, noise="normal"):
         y1 = scipy.stats.laplace.rvs(loc=m1, scale=sigma, size=m1.shape[0])
         y2 = scipy.stats.laplace.rvs(loc=m2, scale=sigma, size=m1.shape[0])
     else:
-        raise ValueError("Noise distribution '{noise}' not known.")
+        raise ValueError(f"Noise distribution '{noise}' not known.")
     
     return y1, y2
 
