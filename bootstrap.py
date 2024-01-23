@@ -138,7 +138,7 @@ class Bootstrap():
 
 
         defect_detected = any(c) or any(r)
-        print(r, c)
+        
         min_point = (np.argmax(r), np.argmax(c))
         max_point = ((len(r) - 1 - np.argmax(r[::-1])) if any(r) else 0, (len(c) - 1 - np.argmax(c[::-1])) if any(c) else 0)
         return defect_detected, min_point, max_point

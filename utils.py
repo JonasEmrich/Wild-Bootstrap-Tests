@@ -82,7 +82,7 @@ def calc_Tn(m1, m2, h, axis=0):
     return np.sqrt(h) * np.sum(np.square(m1-m2), axis=axis)
 
 
-def load_images(folders, target_size=(100, 100), detrend=False):
+def load_images(folders, target_size=(100, 100), detrend=False, normalize=False):
     X, X_hat = [], []
     for folder in folders:
         for filename in os.listdir(folder):
@@ -91,10 +91,15 @@ def load_images(folders, target_size=(100, 100), detrend=False):
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 img = cv2.resize(img, target_size)
                 img = np.divide(img, 255)
+
                 if detrend:
                 # remove linear trends
                     img = scipy.signal.detrend(img, axis=0)
                     img = scipy.signal.detrend(img, axis=1)
+                if normalize:
+                    # max scaling
+                    img /= np.max(img)
+                
                 if folder == "defect_images":
                     X_hat.append(img)
                 elif folder == "no_defect_images":
@@ -102,9 +107,10 @@ def load_images(folders, target_size=(100, 100), detrend=False):
     return X, X_hat
 
 
-def plot_defect_area(defect_image, minpoint, maxpoint):
-    fig, ax = plt.subplots()
+def plot_defect_area(defect_image, minpoint, maxpoint, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
     ax.imshow(defect_image, cmap = 'gray', vmin=0, vmax=1)
     rect = patches.Rectangle((minpoint[1], minpoint[0]), maxpoint[1] - minpoint[1], maxpoint[0] - minpoint[0], linewidth=3, edgecolor='r', fill=False)
     ax.add_patch(rect)
-    plt.show()
+    return ax
