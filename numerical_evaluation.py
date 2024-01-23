@@ -45,7 +45,7 @@ class MonteCarloEvaluation():
 
     def _iter(self, i):
         """ Performs one monte carlo iteration of testing a signal using Bootstrap"""
-        np.random.seed((i * int(time.time())) % 123456789)
+        np.random.seed((i * int(time.time() / 1000)) % 123456789)
 
         # Generate observational data
         data = self._data_generator()
@@ -56,18 +56,21 @@ class MonteCarloEvaluation():
         return result
 
 
+defect = True
+method = "normal"
+BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
 
 if __name__ == "__main__":
     # define evaluation setup
-    filename = f"data/evaluation_franke.csv"
+    filename = f"data/evaluation_franke_pivotal.csv"
     N = 1000 # number of runs   
-    method = "normal"
-    defect = True
+    # method = "normal"
+    """     defect = True
 
 
-    BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
+    BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel") """
     MC = MonteCarloEvaluation(data_generator = lambda: generate_data_franke(defect=defect),
-                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, alpha=.05, printout=False)["rejected"])
+                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, B_std=25, alpha=.05, printout=False)["rejected"])
 
     # start MC computation
     name = method+"_defected_data" if defect else method+"_typical_data"
