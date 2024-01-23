@@ -94,6 +94,7 @@ class Bootstrap():
             ax.set_title(title)
             ax.legend()
             plt.show()
+            return fig
 
     def test_image(self, image, image_hat, h=(.02, .02), g=(.03, .03), B=1000, alpha=.05):
         """
