@@ -70,7 +70,7 @@ def calc_smoothed_estimate_parallel(y, kernel_function, h):
     N = y.shape[1]
     m = np.zeros_like(y)
     for i in range(N): # TODO Optimize
-        x_i = np.arange(N)/N 
+        x_i = np.arange(N)/N
         kernel = kernel_function(i/N - x_i, h)
         m[:,i] = np.mean(np.tile(kernel,(y.shape[0],1)) *y, axis=1)
     return m
@@ -82,10 +82,11 @@ def calc_Tn(m1, m2, h, axis=0):
     return np.sqrt(h) * np.sum(np.square(m1-m2), axis=axis)
 
 
-def load_images(folders, target_size=(100, 100), detrend=False, normalize=False):
+def load_images(folders, filenames, target_size=(100, 100), detrend=False, normalize=False):
     X, X_hat = [], []
     for folder in folders:
-        for filename in os.listdir(folder):
+        files = filenames if filenames else os.listdir(folder)
+        for filename in files:
             img = cv2.imread(os.path.join(folder, filename))
             if img is not None:
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -99,7 +100,7 @@ def load_images(folders, target_size=(100, 100), detrend=False, normalize=False)
                 if normalize:
                     # max scaling
                     img /= np.max(img)
-                
+
                 if folder == "defect_images":
                     X_hat.append(img)
                 elif folder == "no_defect_images":
