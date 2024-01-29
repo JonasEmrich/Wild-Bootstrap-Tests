@@ -56,13 +56,13 @@ class MonteCarloEvaluation():
         return result
 
 
-defect = True
-method = "normal"
+defect = False
+method = "wild"
 BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
 
 if __name__ == "__main__":
     # define evaluation setup
-    filename = f"data/evaluation_franke_pivotal.csv"
+    filename = f"data/evaluation_franke_nodefect_studentized.csv"
     N = 1000 # number of runs   
     # method = "normal"
     """     defect = True

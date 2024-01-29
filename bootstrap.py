@@ -58,23 +58,15 @@ class Bootstrap():
         self.show_progress = show_progress
 
         # compute initial estimates
-        m1, m2, m1_g = self._calc_init_estimates(y1, y2)
-
-        """ plt.figure(dpi=600)
-        plt.plot(y2)
-        plt.plot(m2)
-        plt.plot(y2-m2-4)
-        plt.show() """
+        (m1, m2, m1_g, m2_g), Tn = self._calc_init_estimates(y1, y2)
 
         # calculate residuals
         epsilon_hat_1 = y1 - m1
         epsilon_hat_2 = y2 - m2
 
-        var_m1, var_m2 = self._perform_bootstrap_var_estimation(epsilon_hat_1, epsilon_hat_2)
+        Tn_std = self._perform_bootstrap_var_estimation(epsilon_hat_1, epsilon_hat_2, m1_g, m2_g)
 
-        Tn = calc_Tn(m1, m2, h, np.sqrt(var_m1+var_m2))
-        """plt.plot(np.sqrt(var_m1+var_m2))
-        plt.show() """
+        Tn = Tn / Tn_std # Studentizing"
 
         # perform bootstrap iterations
         Tn_star = self._perform_bootstrap_iterations(epsilon_hat_1, epsilon_hat_2, m1_g)
@@ -195,10 +187,13 @@ class Bootstrap():
         m1 = calc_smoothed_estimate(y1, self.kernel_function, self.h)
         m2 = calc_smoothed_estimate(y2, self.kernel_function, self.h)
         m1_g = calc_smoothed_estimate(y1, self.kernel_function, self.g)
+        m2_g = calc_smoothed_estimate(y2, self.kernel_function, self.g)
 
-        return m1, m2, m1_g
+        Tn = calc_Tn(m1, m2, self.h)
 
-    def _perform_bootstrap_var_estimation(self, epsilon_hat_1, epsilon_hat_2):
+        return (m1, m2, m1_g, m2_g), Tn
+
+    def _perform_bootstrap_var_estimation(self, epsilon_hat_1, epsilon_hat_2, m1_g, m2_g):
         """
         Computes one Bootstrap iteration
         1. computing wild residuals
@@ -209,16 +204,17 @@ class Bootstrap():
         bootstrap_epsilon_1 = self.residual_function(epsilon_hat_1, self.B_std)
         bootstrap_epsilon_2 = self.residual_function(epsilon_hat_2, self.B_std)
 
-        """ y1_star = np.tile(m1, (self.B_std,1)) + bootstrap_epsilon_1
-        y2_star = np.tile(m2, (self.B_std,1)) + bootstrap_epsilon_2 """
+        ndim = bootstrap_epsilon_1.ndim-1
 
-        var1 = np.var(bootstrap_epsilon_1, ddof=1, axis=0)
-        var2 = np.var(bootstrap_epsilon_2, ddof=1, axis=0)
+        y1_star = np.tile(m1_g,(self.B_std,*[1 for _ in range(ndim)])) + bootstrap_epsilon_1
+        y2_star = np.tile(m2_g,(self.B_std,*[1 for _ in range(ndim)])) + bootstrap_epsilon_2
 
-        var1 = calc_smoothed_estimate_parallel(var1, self.kernel_function, self.h)
-        var2 = calc_smoothed_estimate_parallel(var2, self.kernel_function, self.h)
+        m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, self.h)
+        m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, self.h)
 
-        return var1, var2
+        Tn_star = calc_Tn(m1_star, m2_star, self.h, axis=-1)
+
+        return np.std(Tn_star, ddof=1, axis=0)
 
     def _perform_bootstrap_iterations(self, epsilon_hat_1, epsilon_hat_2, m1_g):
         """
@@ -237,10 +233,11 @@ class Bootstrap():
         m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, self.h)
         m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, self.h)
 
-        var_m1, var_m2 = self._perform_bootstrap_var_estimation(bootstrap_epsilon_1, bootstrap_epsilon_2)
-        std = np.sqrt(var_m1+var_m2)
+        std = self._perform_bootstrap_var_estimation(bootstrap_epsilon_1, bootstrap_epsilon_2, m1_star, m2_star)
 
-        return calc_Tn(m1_star, m2_star, self.h, std, axis=1) # Tn_star  
+        Tn_star = calc_Tn(m1_star, m2_star, self.h, axis=1) # Tn_star
+
+        return Tn_star / std
 
 
 class MonteCarlo():

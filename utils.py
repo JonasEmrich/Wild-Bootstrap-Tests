@@ -69,19 +69,19 @@ def calc_smoothed_estimate_parallel(y, kernel_function, h):
     """
     if(y.ndim < 2):
         return calc_smoothed_estimate(y, kernel_function, h)
-    N = y.shape[1]
+    N = y.shape[-1]
     m = np.zeros_like(y)
     for i in range(N): # TODO Optimize
-        x_i = np.arange(N)/N 
+        x_i = np.arange(N) / N 
         kernel = kernel_function(i/N - x_i, h)
-        m[:,i] = np.mean(np.tile(kernel,(y.shape[0],1)) * y, axis=1)
+        m[..., i] = np.mean(kernel * y, axis=-1)
     return m
 
-def calc_Tn(m1, m2, h, std, axis=0):
+def calc_Tn(m1, m2, h, axis=0):
     """
     implements test statistic
     """
-    return np.sqrt(h) * np.sum(np.square((m1-m2)/std), axis=axis)
+    return np.sqrt(h) * np.sum(np.square(m1-m2), axis=axis)
 
 
 def load_images(folders, target_size=(100, 100), detrend=False):
