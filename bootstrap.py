@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import time
 from pathos.multiprocessing import ProcessingPool as Pool
+from scipy import stats
 
 from utils import *
 
@@ -31,7 +32,7 @@ class Bootstrap():
         else:
             raise ValueError("Unknown method.")
 
-    def compute(self, y1, y2, h=.02, g=.03, B=1000, B_std=25, alpha=.05, printout=True, show_progress = True):
+    def compute(self, y1, y2, h=.02, g=.03, B=1000, B_std=25, alpha=.05, beta=0.95, printout=True, show_progress = True):
         """
         performs the computation of the (wild) bootstrap test
 
@@ -58,22 +59,35 @@ class Bootstrap():
         self.show_progress = show_progress
 
         # compute initial estimates
-        (m1, m2, m1_g, m2_g), Tn = self._calc_init_estimates(y1, y2)
+        (m1, m2, m1_g), Tn = self._calc_init_estimates(y1, y2)
 
         # calculate residuals
         epsilon_hat_1 = y1 - m1
         epsilon_hat_2 = y2 - m2
 
-        Tn_std = self._perform_bootstrap_var_estimation(epsilon_hat_1, epsilon_hat_2, m1_g, m2_g)
+        Tn_std = self._perform_bootstrap_var_estimation(y1, y2, m1, m2, self.h)
 
-        Tn = Tn / Tn_std # Studentizing"
+        Tn = Tn / Tn_std # Studentizing
 
         # perform bootstrap iterations
         Tn_star = self._perform_bootstrap_iterations(epsilon_hat_1, epsilon_hat_2, m1_g)
 
         # evaluate test
-        q = 1-alpha
-        c_alpha_star = np.quantile(Tn_star, q)
+        """ q = 1-alpha
+        c_alpha_star = np.quantile(Tn_star, q) """
+
+        upper_r = B
+        lower_r = 0
+        r = B // 2
+
+        while(upper_r - lower_r > 1):
+            beta_dist = stats.beta(B-r+1, r)
+            if(beta_dist.cdf(alpha) >= beta): # Limit search to the lower half
+                upper_r = r
+            else: # Limit search to the upper half
+                lower_r = r
+            r = (upper_r + lower_r) // 2
+        c_alpha_star = np.sort(Tn_star)[r]
         rejected_bool = Tn > c_alpha_star
 
         if printout:
@@ -187,13 +201,12 @@ class Bootstrap():
         m1 = calc_smoothed_estimate(y1, self.kernel_function, self.h)
         m2 = calc_smoothed_estimate(y2, self.kernel_function, self.h)
         m1_g = calc_smoothed_estimate(y1, self.kernel_function, self.g)
-        m2_g = calc_smoothed_estimate(y2, self.kernel_function, self.g)
 
         Tn = calc_Tn(m1, m2, self.h)
 
-        return (m1, m2, m1_g, m2_g), Tn
+        return (m1, m2, m1_g), Tn
 
-    def _perform_bootstrap_var_estimation(self, epsilon_hat_1, epsilon_hat_2, m1_g, m2_g):
+    def _perform_bootstrap_var_estimation(self, y1, y2, m1, m2, smoothing_coeff):
         """
         Computes one Bootstrap iteration
         1. computing wild residuals
@@ -201,18 +214,22 @@ class Bootstrap():
         3. estimating bootstrap smoothed estimates m*
         4. calculate bootstrap test statstistic Tn*
         """
+
+        epsilon_hat_1 = y1 - m1
+        epsilon_hat_2 = y2 - m2
+
         bootstrap_epsilon_1 = self.residual_function(epsilon_hat_1, self.B_std)
         bootstrap_epsilon_2 = self.residual_function(epsilon_hat_2, self.B_std)
 
         ndim = bootstrap_epsilon_1.ndim-1
 
-        y1_star = np.tile(m1_g,(self.B_std,*[1 for _ in range(ndim)])) + bootstrap_epsilon_1
-        y2_star = np.tile(m2_g,(self.B_std,*[1 for _ in range(ndim)])) + bootstrap_epsilon_2
+        y1_star = np.tile(m1,(self.B_std,*[1 for _ in range(ndim)])) + bootstrap_epsilon_1
+        y2_star = np.tile(m2,(self.B_std,*[1 for _ in range(ndim)])) + bootstrap_epsilon_2
 
-        m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, self.h)
-        m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, self.h)
+        m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, smoothing_coeff)
+        m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, smoothing_coeff)
 
-        Tn_star = calc_Tn(m1_star, m2_star, self.h, axis=-1)
+        Tn_star = calc_Tn(m1_star, m2_star, smoothing_coeff, axis=-1)
 
         return np.std(Tn_star, ddof=1, axis=0)
 
@@ -233,7 +250,7 @@ class Bootstrap():
         m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, self.h)
         m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, self.h)
 
-        std = self._perform_bootstrap_var_estimation(bootstrap_epsilon_1, bootstrap_epsilon_2, m1_star, m2_star)
+        std = self._perform_bootstrap_var_estimation(y1_star, y2_star, m1_star, m2_star, self.h)
 
         Tn_star = calc_Tn(m1_star, m2_star, self.h, axis=1) # Tn_star
 

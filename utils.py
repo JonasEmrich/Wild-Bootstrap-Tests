@@ -11,7 +11,8 @@ def generate_data_franke(N=500, defect=True):
     m2 = m1.copy()
     if defect:
         m2 += np.exp(-800*np.square(x-0.5))
-    sigma = 0.7 - 1.4*np.square(x-0.5)
+    # sigma = 0.7 - 1.4*np.square(x-0.5)
+    sigma = 0.7 - 1.4*np.power(x-0.5, 2)*np.sin(2*np.pi*x)
     y1, y2 = generate_synthetic_data(m1, m2, sigma)
     return y1, y2
 

@@ -57,12 +57,12 @@ class MonteCarloEvaluation():
 
 
 defect = False
-method = "wild"
+method = "wild" # "wild"
 BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
 
 if __name__ == "__main__":
     # define evaluation setup
-    filename = f"data/evaluation_franke_nodefect_studentized.csv"
+    filename = f"data/evaluation_franke_pivotal_05.csv"
     N = 1000 # number of runs   
     # method = "normal"
     """     defect = True
@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel") """
     MC = MonteCarloEvaluation(data_generator = lambda: generate_data_franke(defect=defect),
-                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, B_std=25, alpha=.05, printout=False)["rejected"])
+                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, B_std=25, alpha=.05, beta=0.95, printout=False)["rejected"])
 
     # start MC computation
     name = method+"_defected_data" if defect else method+"_typical_data"
