@@ -11,8 +11,12 @@ def generate_data_franke(N=500, defect=True):
     m2 = m1.copy()
     if defect:
         m2 += np.exp(-800*np.square(x-0.5))
-    # sigma = 0.7 - 1.4*np.square(x-0.5)
-    sigma = 0.7 - 1.4*np.power(x-0.5, 2)*np.sin(2*np.pi*x)
+    #sigma = 0.7 - 1.4*np.square(x-0.5)
+    #sigma = 0.7 - 3*np.power(x-0.5, 2)*np.sin(2*np.pi*x)*np.exp(-(x-0.7)/0.8)
+    #sigma = 0.1+np.power(x, 3)*2
+    #sigma = 0.1 + x
+    #sigma = 0.5 + 3*np.sum([np.exp((-1000)*np.power(x-i, 2)) for i in np.linspace(0.05, 1, 5)], axis=0)
+    sigma = 0.3 + (x>0.7).astype(float)*0.8
     y1, y2 = generate_synthetic_data(m1, m2, sigma)
     return y1, y2
 
@@ -33,8 +37,18 @@ def generate_synthetic_data(m1, m2, sigma):
     All inputs should be 1d np arrays of the same shape 
     # TODO Try other distributions
     """
-    y1 = m1 + np.random.standard_normal(m1.shape[0]) * sigma
-    y2 = m2 + np.random.standard_normal(m1.shape[0]) * sigma
+    
+    eps1 = np.random.standard_normal(m1.shape[0]) * sigma
+    eps2 = np.random.standard_normal(m1.shape[0]) * sigma
+
+    """ plt.figure(dpi=600)
+    plt.plot(eps1)
+    plt.plot(eps2+4)
+    plt.legend(["epsilon 1, epsilon 2"])
+    plt.show() """
+
+    y1 = m1 + eps1
+    y2 = m2 + eps2
     
     return y1, y2
 

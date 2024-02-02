@@ -65,9 +65,15 @@ class Bootstrap():
         epsilon_hat_1 = y1 - m1
         epsilon_hat_2 = y2 - m2
 
-        Tn_std = self._perform_bootstrap_var_estimation(y1, y2, m1, m2, self.h)
+        """ plt.figure(dpi = 600)
+        plt.plot(epsilon_hat_1)
+        plt.plot(epsilon_hat_2 + 4)
+        plt.legend(["epsilon 1", "epsilon 2"])
+        plt.show() """
 
-        Tn = Tn / Tn_std # Studentizing
+        #Tn_std = self._perform_bootstrap_var_estimation(y1, y2, m1, m2, self.h)
+
+        #Tn = Tn / Tn_std # Studentizing
 
         # perform bootstrap iterations
         Tn_star = self._perform_bootstrap_iterations(epsilon_hat_1, epsilon_hat_2, m1_g)
@@ -221,6 +227,12 @@ class Bootstrap():
         bootstrap_epsilon_1 = self.residual_function(epsilon_hat_1, self.B_std)
         bootstrap_epsilon_2 = self.residual_function(epsilon_hat_2, self.B_std)
 
+        plt.figure(dpi = 600)
+        plt.plot(bootstrap_epsilon_1)
+        plt.plot(bootstrap_epsilon_2 + 4)
+        plt.legend(["epsilon 1, epsilon 2"])
+        plt.show()
+
         ndim = bootstrap_epsilon_1.ndim-1
 
         y1_star = np.tile(m1,(self.B_std,*[1 for _ in range(ndim)])) + bootstrap_epsilon_1
@@ -244,13 +256,21 @@ class Bootstrap():
         bootstrap_epsilon_1 = self.residual_function(epsilon_hat_1, self.B)
         bootstrap_epsilon_2 = self.residual_function(epsilon_hat_2, self.B)
 
+        """ plt.figure(dpi = 600)
+        plt.plot(bootstrap_epsilon_1[2, :])
+        plt.plot(bootstrap_epsilon_2[2, :] + 4)
+        plt.legend(["epsilon 1, epsilon 2"])
+        plt.show() """
+
         y1_star = np.tile(m1_g,(self.B,1)) + bootstrap_epsilon_1
         y2_star = np.tile(m1_g,(self.B,1)) + bootstrap_epsilon_2
 
         m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, self.h)
         m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, self.h)
 
-        std = self._perform_bootstrap_var_estimation(y1_star, y2_star, m1_star, m2_star, self.h)
+        #std = self._perform_bootstrap_var_estimation(y1_star, y2_star, m1_star, m2_star, self.h)
+        #print(std)
+        std = 1
 
         Tn_star = calc_Tn(m1_star, m2_star, self.h, axis=1) # Tn_star
 
