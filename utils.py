@@ -11,13 +11,13 @@ def generate_data_franke(N=500, defect=True):
     m2 = m1.copy()
     if defect:
         m2 += np.exp(-800*np.square(x-0.5))
-    #sigma = 0.7 - 1.4*np.square(x-0.5)
+    sigma = 0.7 - 1.4*np.square(x-0.5)
     #sigma = 0.7 - 3*np.power(x-0.5, 2)*np.sin(2*np.pi*x)*np.exp(-(x-0.7)/0.8)
     #sigma = 0.1+np.power(x, 3)*2
     #sigma = 0.1 + x
     #sigma = 0.5 + 3*np.sum([np.exp((-1000)*np.power(x-i, 2)) for i in np.linspace(0.05, 1, 5)], axis=0)
-    sigma = 0.3 + (x>0.7).astype(float)*0.8
-    y1, y2 = generate_synthetic_data(m1, m2, sigma)
+    #sigma = 0.3 + (x>0.7).astype(float)*1.5
+    y1, y2 = generate_synthetic_data(m1, m2, sigma, "laplace")
     return y1, y2
 
 def bartlett_priestley_kernel(u, h):
@@ -32,23 +32,29 @@ def gaussian_kernel(u, h):
     """
     return (1/h) * (1 / np.sqrt(2*np.pi)) * np.exp((-1/2)*np.power(u / h, 2))
 
-def generate_synthetic_data(m1, m2, sigma):
+def generate_synthetic_data(m1, m2, sigma, noise="normal"):
     """ 
     All inputs should be 1d np arrays of the same shape 
     # TODO Try other distributions
     """
     
-    eps1 = np.random.standard_normal(m1.shape[0]) * sigma
-    eps2 = np.random.standard_normal(m1.shape[0]) * sigma
+    if noise in ["normal", "gaussian", "gauss"]:
+        y1 = scipy.stats.norm.rvs(loc=m1, scale=sigma, size=m1.shape[0])
+        y2 = scipy.stats.norm.rvs(loc=m2, scale=sigma, size=m1.shape[0])
+    elif noise in ["skewed", "skew"]:
+        y1 = scipy.stats.skewnorm.rvs(4, loc=m1, scale=sigma, size=m1.shape[0])
+        y2 = scipy.stats.skewnorm.rvs(4, loc=m2, scale=sigma, size=m1.shape[0])
+    elif noise in ["laplace", "heavy-tailed"]:
+        y1 = scipy.stats.laplace.rvs(loc=m1, scale=sigma, size=m1.shape[0])
+        y2 = scipy.stats.laplace.rvs(loc=m2, scale=sigma, size=m1.shape[0])
+    else:
+        raise ValueError(f"Noise distribution '{noise}' not known.")
 
     """ plt.figure(dpi=600)
     plt.plot(eps1)
     plt.plot(eps2+4)
     plt.legend(["epsilon 1, epsilon 2"])
     plt.show() """
-
-    y1 = m1 + eps1
-    y2 = m2 + eps2
     
     return y1, y2
 
@@ -87,8 +93,12 @@ def calc_smoothed_estimate_parallel(y, kernel_function, h):
     N = y.shape[-1]
     m = np.zeros_like(y)
     for i in range(N): # TODO Optimize
+        if(type(h) == float):
+            h_val = h
+        else:
+            h_val = h[i]
         x_i = np.arange(N) / N 
-        kernel = kernel_function(i/N - x_i, h)
+        kernel = kernel_function(i/N - x_i, h_val)
         m[..., i] = np.mean(kernel * y, axis=-1)
     return m
 
@@ -96,7 +106,7 @@ def calc_Tn(m1, m2, h, axis=0):
     """
     implements test statistic
     """
-    return np.sqrt(h) * np.sum(np.square(m1-m2), axis=axis)
+    return np.sum(np.sqrt(h)*np.square(m1-m2), axis=axis)
 
 
 def load_images(folders, target_size=(100, 100), detrend=False):

@@ -25,14 +25,14 @@ class Bootstrap():
         # select residual function according to method
         if method in ["bootstrap", "classic", "normal", "resample_residual"]:
             self.residual_function = self._resample_residual
-        elif method in ["wild", "wild_binary"]:
+        elif method in ["wild", "wild_binary", "wild_pivotal", "wild_extended", "wild_extended_smoothed"]:
             self.residual_function = self._sample_wild_residual
         elif method in ["wild_normal"]:
             self.residual_function = self._sample_wild_residual_normal
         else:
             raise ValueError("Unknown method.")
 
-    def compute(self, y1, y2, h=.02, g=.03, B=1000, B_std=25, alpha=.05, beta=0.95, printout=True, show_progress = True):
+    def compute(self, y1, y2, h=.02, g=.03, B=1000, B_std=25, alpha=[.05], beta=0.95, printout=True, show_progress = True):
         """
         performs the computation of the (wild) bootstrap test
 
@@ -59,7 +59,24 @@ class Bootstrap():
         self.show_progress = show_progress
 
         # compute initial estimates
-        (m1, m2, m1_g), Tn = self._calc_init_estimates(y1, y2)
+        (m1, m2, m1_g), Tn = self._calc_init_estimates(y1, y2, self.h, self.g)
+
+        # calculate residuals
+        epsilon_hat_1 = y1 - m1
+        epsilon_hat_2 = y2 - m2
+
+        std = np.zeros_like(epsilon_hat_1)
+        N = epsilon_hat_1.shape[0]
+        for i in range(N):
+            data = epsilon_hat_1[max(0,i-N//10):i+N//10]
+            if(i > 0):
+                std[i] = 0.95*std[i-1]+0.05*np.std(data*np.hamming(data.shape[0]) * (data.shape[0]-1) / np.sum(np.hamming(data.shape[0])), ddof=1)
+            else:
+                std[i] = np.std(data*np.hamming(data.shape[0]) * (data.shape[0]-1) / np.sum(np.hamming(data.shape[0])), ddof=1)
+
+        h_est = 0.086 * std + 0.01 # Approximate formula for h  
+
+        (m1, m2, m1_g), Tn = self._calc_init_estimates(y1, y2, h_est, h_est + 0.01)
 
         # calculate residuals
         epsilon_hat_1 = y1 - m1
@@ -82,34 +99,43 @@ class Bootstrap():
         """ q = 1-alpha
         c_alpha_star = np.quantile(Tn_star, q) """
 
-        upper_r = B
-        lower_r = 0
-        r = B // 2
+        self.results = {}
 
-        while(upper_r - lower_r > 1):
-            beta_dist = stats.beta(B-r+1, r)
-            if(beta_dist.cdf(alpha) >= beta): # Limit search to the lower half
-                upper_r = r
-            else: # Limit search to the upper half
-                lower_r = r
-            r = (upper_r + lower_r) // 2
-        c_alpha_star = np.sort(Tn_star)[r]
-        rejected_bool = Tn > c_alpha_star
+        for cur_alpha in alpha:
+            upper_r = B
+            lower_r = 0
+            r = B // 2
+            
+            while(upper_r - lower_r > 1):
+                beta_dist = stats.beta(B-r+1, r)
+                if(beta_dist.cdf(cur_alpha) >= beta): # Limit search to the lower half
+                    upper_r = r
+                else: # Limit search to the upper half
+                    lower_r = r
+                r = (upper_r + lower_r) // 2
+            c_alpha_star = np.sort(Tn_star)[r]
+            rejected_bool = Tn > c_alpha_star
+            self.results["c_alpha_star_%.5f"%cur_alpha] = c_alpha_star
+            self.results["rejected_%.5f"%cur_alpha] = rejected_bool
+            if printout:
+                print("The Hypothesis H0 was %srejected for alpha = %.5f" %("" if rejected_bool else "not ", cur_alpha))
+                print("c_alpha_star is %.5f for alpha = %.5f"%(c_alpha_star, cur_alpha))
 
-        if printout:
-            print("The Hypothesis H0 was %srejected" %("" if rejected_bool else "not "))
-            print("c_alpha_star is %.4f"%c_alpha_star)
-
-        self.results = {"rejected": Tn > c_alpha_star,
+        """ self.results = {"rejected": rejected_bool,
                         "c_alpha_star":c_alpha_star,
                         "Tn_star": Tn_star,
-                        "Tn":Tn}
+                        "Tn":Tn} """
+        
+        self.results["Tn_star"] = Tn_star
+        self.results["Tn"] = Tn
 
         return self.results
 
-    def plot_kde(self, title="Bootstrap Approximation"):
+    def plot_kde(self, title="Bootstrap Approximation", alpha=0.05):
         if self.results:
-            _, c_alpha_star, Tn_star, Tn = self.results.values()
+            Tn_star = self.results["Tn_star"]
+            Tn = self.results["Tn"]
+            c_alpha_star = self.results["c_alpha_star_%.5f"%alpha]
 
             fig, ax = plt.subplots()
             ax = sns.kdeplot(Tn_star, ax=ax, label="Bootstrap Distribution")
@@ -202,13 +228,13 @@ class Bootstrap():
         V_i = np.random.standard_normal((B, epsilon_hat.shape[0]))
         return ((1/np.sqrt(2))*V_i + (1/2)*(np.square(V_i)-1)) * np.tile(epsilon_hat,(B,1))
 
-    def _calc_init_estimates(self, y1, y2):
+    def _calc_init_estimates(self, y1, y2, h, g):
         # calculate initial estimates
-        m1 = calc_smoothed_estimate(y1, self.kernel_function, self.h)
-        m2 = calc_smoothed_estimate(y2, self.kernel_function, self.h)
-        m1_g = calc_smoothed_estimate(y1, self.kernel_function, self.g)
+        m1 = calc_smoothed_estimate(y1, self.kernel_function, h)
+        m2 = calc_smoothed_estimate(y2, self.kernel_function, h)
+        m1_g = calc_smoothed_estimate(y1, self.kernel_function, g)
 
-        Tn = calc_Tn(m1, m2, self.h)
+        Tn = calc_Tn(m1, m2, h)
 
         return (m1, m2, m1_g), Tn
 
@@ -227,12 +253,12 @@ class Bootstrap():
         bootstrap_epsilon_1 = self.residual_function(epsilon_hat_1, self.B_std)
         bootstrap_epsilon_2 = self.residual_function(epsilon_hat_2, self.B_std)
 
-        plt.figure(dpi = 600)
+        """ plt.figure(dpi = 600)
         plt.plot(bootstrap_epsilon_1)
         plt.plot(bootstrap_epsilon_2 + 4)
         plt.legend(["epsilon 1, epsilon 2"])
         plt.show()
-
+ """
         ndim = bootstrap_epsilon_1.ndim-1
 
         y1_star = np.tile(m1,(self.B_std,*[1 for _ in range(ndim)])) + bootstrap_epsilon_1
@@ -268,11 +294,28 @@ class Bootstrap():
         m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, self.h)
         m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, self.h)
 
+        bootstrap_epsilon_hat_1 = y1_star - m1_star
+
+        std = np.zeros_like(bootstrap_epsilon_hat_1)
+        N = bootstrap_epsilon_hat_1.shape[-1]
+        for i in range(N):
+            data = bootstrap_epsilon_hat_1[..., max(0,i-N//10):i+N//10]
+            if(i > 0):
+                std[..., i] = 0.95*std[..., i-1]+ 0.05*np.std(data*np.hamming(data.shape[-1]) * (data.shape[-1]-1) / np.sum(np.hamming(data.shape[-1])), ddof=1, axis=-1)
+            else:
+                std[..., i] = np.std(data*np.hamming(data.shape[-1]) * (data.shape[-1]-1) / np.sum(np.hamming(data.shape[-1])), ddof=1, axis=-1)
+
+        h_est = 0.086 * std + 0.01 # Approximate formula for h 
+
+        m1_star = calc_smoothed_estimate_parallel(y1_star, self.kernel_function, h_est)
+        m2_star = calc_smoothed_estimate_parallel(y2_star, self.kernel_function, h_est)
+        #h_est = self.h
+
         #std = self._perform_bootstrap_var_estimation(y1_star, y2_star, m1_star, m2_star, self.h)
         #print(std)
         std = 1
 
-        Tn_star = calc_Tn(m1_star, m2_star, self.h, axis=1) # Tn_star
+        Tn_star = calc_Tn(m1_star, m2_star, h_est, axis=1) # Tn_star
 
         return Tn_star / std
 

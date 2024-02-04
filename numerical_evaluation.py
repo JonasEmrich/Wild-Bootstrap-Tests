@@ -32,13 +32,13 @@ class MonteCarloEvaluation():
         # Perform L monte carlo experiments/bootstrap hypothesis tests
 
         pool = Pool(mp.cpu_count()-1)
-        results = np.array([result for result in tqdm(pool.imap(self._iter, np.arange(N)), total=N, leave=True)])
+        results = [result for result in tqdm(pool.imap(self._iter, np.arange(N)), total=N, leave=True)]
 
         # write
         if filename is not None:
             df = pd.DataFrame(results)
             df['name'] = name
-            df.to_csv(filename, header=False, index=False, mode="a")
+            df.to_csv(filename, index=False, mode="a")
 
         return results
 
@@ -52,26 +52,29 @@ class MonteCarloEvaluation():
 
         # perform computation
         result = self._testing_method(*data)
+
+        result = {k:result[k] for k in ["rejected_%.5f"%(alpha) for alpha in alpha_list]}
     
         return result
 
 
-defect = True
-method = "normal" # "wild"
+defect = False
+method = "wild_extended_smoothed" # "wild"
 BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel")
 begin_time = time.time()
+alpha_list = np.linspace(0.01, 1, 1000)
 
 if __name__ == "__main__":
     # define evaluation setup
-    filename = f"data/evaluation_heavyside03_noise_h07.csv"
-    N = 250 # number of runs   
+    filename = f"data/evaluation_franke_roc_laplace.csv"
+    N = 500 # number of runs   
     # method = "normal"
     """     defect = True
 
 
     BS = Bootstrap(method=method, kernel_function="bartlett_priestley_kernel") """
     MC = MonteCarloEvaluation(data_generator = lambda: generate_data_franke(defect=defect),
-                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.07, g=.08, B=1000, B_std=25, alpha=.05, beta=0.95, printout=False)["rejected"])
+                             testing_method = lambda y1, y2: BS.compute(y1, y2, h=.02, g=.03, B=1000, B_std=25, alpha=alpha_list, beta=0.95, printout=False))
 
     # start MC computation
     name = method+"_defected_data" if defect else method+"_typical_data"
